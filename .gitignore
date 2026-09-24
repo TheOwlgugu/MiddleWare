@@ -1,0 +1,17 @@
+# 排除依赖文件夹（很大，不需要上传）
+node_modules/
+
+# 排除日志
+*.log
+npm-debug.log*
+
+# 排除环境变量文件（如果以后有敏感信息）
+.env
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code 配置（可选，看个人习惯）
+.vscode/
