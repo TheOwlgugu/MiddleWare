@@ -50,8 +50,9 @@ const tcpServer = net.createServer(socket => {
         }
     });
 
-    socket.on('end', () => console.log('【ESP8266】断开'));
-    socket.on('error', err => console.error('TCP错误:', err.message));
+    socket.on('end',   () => console.log('【ESP8266】对方主动断开'));
+    socket.on('close', () => console.log('【ESP8266】连接完全关闭'));
+    socket.on('error', err => console.error('【ESP8266】TCP错误:', err.message));
 });
 
 tcpServer.listen(TCP_PORT, '0.0.0.0', () => {
