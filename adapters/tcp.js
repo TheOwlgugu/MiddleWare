@@ -23,6 +23,7 @@ function start() {
 
             log.info('【WiFi】已连接', { peer });
             socket.setNoDelay(true);
+            socket.setKeepAlive(true, 30000);   // 30 秒探测，保活 NAT 映射
 
             let buffer = '';
             let chain = Promise.resolve();     // 同一连接内按顺序处理
