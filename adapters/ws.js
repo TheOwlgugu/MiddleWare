@@ -8,7 +8,8 @@ function start() {
     return broadcast.init(
         config.WS_PORT,
         (ws, text) => downlink.handleMessage(ws, text),
-        config.WS_TOKEN
+        config.WS_TOKEN,
+        config.WS_HOST
     );
 }
 

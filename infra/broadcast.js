@@ -1,6 +1,7 @@
 // infra/broadcast.js —— 向 Unity 推送统一读数，同时接收 Unity 发来的下行命令
 const WebSocket = require('ws');
 const log = require('./logger');
+const guard = require('./guard');
 
 let wss = null;
 let clientCount = 0;
@@ -9,20 +10,33 @@ let clientCount = 0;
  * @param {number} port
  * @param {(ws: WebSocket, text: string) => void} [onMessage]  Unity 发来消息时的回调
  */
-function init(port, onMessage, token) {
+function init(port, onMessage, token, host) {
     return new Promise((resolve, reject) => {
         wss = new WebSocket.Server({
             port,
+            host,
             verifyClient: token
                 ? (info, cb) => {
+                    const ip = info.req.socket.remoteAddress;
+
+                    if (guard.isBanned('ws', ip)) {
+                        cb(false, 403, 'Banned');
+                        return;
+                    }
+
                     let ok = false;
                     try {
                         const u = new URL(info.req.url, 'http://localhost');
                         ok = u.searchParams.get('token') === token;
                     } catch (_) { /* URL 解析失败按未授权处理 */ }
-                    if (!ok) {
-                        log.warn('【Unity】认证失败', { ip: info.req.socket.remoteAddress });
+
+                    if (ok) {
+                        guard.ok('ws', ip);
+                    } else {
+                        guard.fail('ws', ip);
+                        log.warn('【Unity】认证失败', { ip });
                     }
+
                     cb(ok, ok ? 200 : 401, ok ? 'OK' : 'Unauthorized');
                 }
                 : undefined

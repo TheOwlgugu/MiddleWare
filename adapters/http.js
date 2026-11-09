@@ -7,6 +7,7 @@ const broadcast = require('../infra/broadcast');
 const ingest = require('../core/ingest');
 const registry = require('../infra/registry');
 const downlink = require('../core/downlink');
+const guard = require('../infra/guard');
 
 function start() {
     const app = express();
@@ -30,6 +31,22 @@ function start() {
             ingest: ingest.snapshot(),
             routes: registry.snapshot(),
             downlink: downlink.snapshot()
+        });
+    });
+
+    // 认证失败黑名单（只在本机看）
+    app.get('/guard', (req, res) => {
+        const now = Date.now();
+        const all = guard.snapshot();
+        res.json({
+            now,
+            config: {
+                maxFails: config.AUTH_MAX_FAILS,
+                windowMs: config.AUTH_WINDOW_MS,
+                banMs: config.AUTH_BAN_MS
+            },
+            banned: all.filter(e => e.bannedUntil > now),
+            tracked: all
         });
     });
 

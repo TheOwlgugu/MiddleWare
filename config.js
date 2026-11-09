@@ -21,6 +21,14 @@ module.exports = {
     // Unity WebSocket 访问令牌（空 = 不校验，生产必须设置）
     WS_TOKEN: process.env.WS_TOKEN || '',
 
+    // 认证失败限流：窗口内失败次数达到阈值，封禁该 IP 一段时间
+    AUTH_MAX_FAILS:  Number(process.env.AUTH_MAX_FAILS  || 10),
+    AUTH_WINDOW_MS:  Number(process.env.AUTH_WINDOW_MS  || 5 * 60 * 1000),
+    AUTH_BAN_MS:     Number(process.env.AUTH_BAN_MS     || 15 * 60 * 1000),
+
+    // WebSocket 绑定地址：默认只绑本机，由 SSH 隧道/Nginx 反代
+    WS_HOST: process.env.WS_HOST || '127.0.0.1',
+
     // 设备认证：连接后多久没发 AUTH 就断开（毫秒）
     AUTH_TIMEOUT_MS: Number(process.env.AUTH_TIMEOUT_MS || 5000),
 

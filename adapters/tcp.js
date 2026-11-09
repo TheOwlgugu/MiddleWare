@@ -8,11 +8,19 @@ const registry = require('../infra/registry');
 const ascii10 = require('../protocols/ascii10');
 const ingest = require('../core/ingest');
 const auth = require('../core/auth');
+const guard = require('../infra/guard');
 
 function start() {
     return new Promise((resolve, reject) => {
         const server = net.createServer(socket => {
             const peer = `${socket.remoteAddress}:${socket.remotePort}`;
+
+            if (guard.isBanned('tcp', socket.remoteAddress)) {
+                log.warn('【防护】已封禁 IP 尝试连接，直接断开', { peer });
+                socket.destroy();
+                return;
+            }
+
             log.info('【WiFi】已连接', { peer });
             socket.setNoDelay(true);
 
@@ -41,9 +49,11 @@ function start() {
                         if (!authed) {
                             const r = await auth.handleLine(message);
                             if (!r.ok) {
+                                guard.fail('tcp', socket.remoteAddress);
                                 socket.end('AUTH,ERR\n');
                                 return;
                             }
+                            guard.ok('tcp', socket.remoteAddress);
                             authed = true;
                             authedDeviceId = r.deviceId;
                             clearTimeout(authTimer);
