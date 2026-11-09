@@ -18,6 +18,9 @@ module.exports = {
     WS_PORT:   port('WS_PORT',   8081),
     HTTP_PORT: port('HTTP_PORT', 3000),
 
+    // Unity WebSocket 访问令牌（空 = 不校验，生产必须设置）
+    WS_TOKEN: process.env.WS_TOKEN || '',
+
     // 设备认证：连接后多久没发 AUTH 就断开（毫秒）
     AUTH_TIMEOUT_MS: Number(process.env.AUTH_TIMEOUT_MS || 5000),
 

@@ -5,7 +5,11 @@ const config = require('../config');
 const downlink = require('../core/downlink');
 
 function start() {
-    return broadcast.init(config.WS_PORT, (ws, text) => downlink.handleMessage(ws, text));
+    return broadcast.init(
+        config.WS_PORT,
+        (ws, text) => downlink.handleMessage(ws, text),
+        config.WS_TOKEN
+    );
 }
 
 module.exports = { start };

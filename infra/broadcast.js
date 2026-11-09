@@ -9,9 +9,24 @@ let clientCount = 0;
  * @param {number} port
  * @param {(ws: WebSocket, text: string) => void} [onMessage]  Unity 发来消息时的回调
  */
-function init(port, onMessage) {
+function init(port, onMessage, token) {
     return new Promise((resolve, reject) => {
-        wss = new WebSocket.Server({ port });
+        wss = new WebSocket.Server({
+            port,
+            verifyClient: token
+                ? (info, cb) => {
+                    let ok = false;
+                    try {
+                        const u = new URL(info.req.url, 'http://localhost');
+                        ok = u.searchParams.get('token') === token;
+                    } catch (_) { /* URL 解析失败按未授权处理 */ }
+                    if (!ok) {
+                        log.warn('【Unity】认证失败', { ip: info.req.socket.remoteAddress });
+                    }
+                    cb(ok, ok ? 200 : 401, ok ? 'OK' : 'Unauthorized');
+                }
+                : undefined
+        });
 
         wss.once('listening', () => {
             log.info('WebSocket 已监听', { port });
