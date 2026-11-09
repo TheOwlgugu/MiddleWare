@@ -1,5 +1,5 @@
 // adapters/tcp.js —— WiFi/TCP 传输层
-// 上行：按 '\n' 分帧 → ascii10 协议解析 → ingest
+// 上行：AUTH 握手 → 按 '\n' 分帧 → ascii10 → ingest
 // 下行：把 deviceId → socket 登记到路由表，供 core/downlink 写回
 const net = require('net');
 const config = require('../config');
@@ -7,15 +7,26 @@ const log = require('../infra/logger');
 const registry = require('../infra/registry');
 const ascii10 = require('../protocols/ascii10');
 const ingest = require('../core/ingest');
+const auth = require('../core/auth');
 
 function start() {
     return new Promise((resolve, reject) => {
         const server = net.createServer(socket => {
             const peer = `${socket.remoteAddress}:${socket.remotePort}`;
             log.info('【WiFi】已连接', { peer });
+            socket.setNoDelay(true);
 
             let buffer = '';
-            let chain = Promise.resolve();   // 同一连接内按顺序处理，避免乱序入库
+            let chain = Promise.resolve();     // 同一连接内按顺序处理
+            let authed = false;
+            let authedDeviceId = null;
+
+            const authTimer = setTimeout(() => {
+                if (!authed) {
+                    log.warn('【认证】超时，断开', { peer });
+                    socket.destroy();
+                }
+            }, config.AUTH_TIMEOUT_MS || 5000);
 
             socket.on('data', data => {
                 buffer += data.toString();
@@ -26,25 +37,49 @@ function start() {
                     const message = line.trim();
                     if (!message) continue;
 
-                    log.debug('【TCP原始】', { message });
+                    chain = chain.then(async () => {
+                        if (!authed) {
+                            const r = await auth.handleLine(message);
+                            if (!r.ok) {
+                                socket.end('AUTH,ERR\n');
+                                return;
+                            }
+                            authed = true;
+                            authedDeviceId = r.deviceId;
+                            clearTimeout(authTimer);
+                            socket.write('AUTH,OK\n');
+                            log.info('【认证】连接已授权', { peer, deviceId: authedDeviceId });
+                            return;
+                        }
 
-                    const parsed = ascii10.parseLine(message);
-                    if (!parsed.ok) {
-                        ingest.reject(parsed.reason, { source: 'WiFi', raw: message });
-                        continue;
-                    }
+                        const parsed = ascii10.parseLine(message);
+                        if (!parsed.ok) {
+                            ingest.reject(parsed.reason, { source: 'WiFi', raw: message });
+                            return;
+                        }
 
-                    // 登记路由：下行时才知道这个设备走哪个 socket
-                    registry.bindWifi(parsed.deviceId, socket);
+                        /* 认证过的 socket 只能代表它自己的设备号 */
+                        if (parsed.deviceId !== authedDeviceId) {
+                            ingest.reject('设备号与认证不一致', {
+                                source: 'WiFi', raw: message, authed: authedDeviceId
+                            });
+                            return;
+                        }
 
-                    chain = chain.then(() => ingest.submit({ ...parsed, source: 'WiFi', raw: message }));
+                        registry.bindWifi(parsed.deviceId, socket);
+                        await ingest.submit({ ...parsed, source: 'WiFi', raw: message });
+                    }).catch(err => {
+                        log.error('【WiFi】处理失败', { peer, message: err.message });
+                        if (!authed) socket.end('AUTH,ERR\n');
+                    });
                 }
             });
 
             socket.on('end',   () => log.info('【WiFi】对方主动断开', { peer }));
             socket.on('close', () => {
+                clearTimeout(authTimer);
                 registry.unbindSocket(socket);
-                log.info('【WiFi】连接关闭', { peer });
+                log.info('【WiFi】连接关闭', { peer, authed });
             });
             socket.on('error', err => log.error('【WiFi】TCP 错误', { peer, message: err.message }));
         });
@@ -54,7 +89,6 @@ function start() {
             resolve(server);
         });
         server.once('error', reject);
-
         server.listen(config.TCP_PORT, '0.0.0.0');
     });
 }

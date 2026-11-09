@@ -18,6 +18,9 @@ module.exports = {
     WS_PORT:   port('WS_PORT',   8081),
     HTTP_PORT: port('HTTP_PORT', 3000),
 
+    // 设备认证：连接后多久没发 AUTH 就断开（毫秒）
+    AUTH_TIMEOUT_MS: Number(process.env.AUTH_TIMEOUT_MS || 5000),
+
     // 日志目录：默认在仓库内 logs/，可用 LOG_DIR 覆盖
     LOG_DIR: process.env.LOG_DIR || path.join(__dirname, 'logs'),
 

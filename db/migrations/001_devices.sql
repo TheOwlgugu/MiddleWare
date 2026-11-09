@@ -1,0 +1,8 @@
+-- 设备认证表：只存 token 的 SHA-256，不存明文
+CREATE TABLE IF NOT EXISTS devices (
+  device_id  INT NOT NULL PRIMARY KEY,
+  token_hash CHAR(64) NOT NULL,
+  name       VARCHAR(32) DEFAULT NULL,
+  enabled    TINYINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
