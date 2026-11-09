@@ -5,12 +5,11 @@
 //   例如温度 25.20℃ 传 value=2520，湿度 50.01% 传 value=5001，PM2.5 直接传 µg/m³。
 //   换算统一放在 core/reading.js，这里只做字段提取，不做缩放。
 //
-// 这样做的原因：ChirpStack 的设备端编解码器不在本仓库，改动它需要同时升级设备，
-// 所以先保持线上语义不变；将来 Codec 若改发工程值，只需要改这一个文件。
+// 额外返回 devEui：下行路由需要它（deviceId → devEui → ChirpStack 命令 topic）。
 
 /**
  * @param {Buffer|string} payload  MQTT 消息体（ChirpStack uplink JSON）
- * @returns {{ok:true, deviceId:number, type:number, rawValue:number} | {ok:false, reason:string}}
+ * @returns {{ok:true, deviceId:number, type:number, rawValue:number, devEui:string|null} | {ok:false, reason:string}}
  */
 function parsePayload(payload) {
     let json;
@@ -33,7 +32,9 @@ function parsePayload(payload) {
         return { ok: false, reason: `object 字段不是数字: ${JSON.stringify(obj)}` };
     }
 
-    return { ok: true, deviceId, type, rawValue };
+    const devEui = json.deviceInfo && json.deviceInfo.devEui ? json.deviceInfo.devEui : null;
+
+    return { ok: true, deviceId, type, rawValue, devEui };
 }
 
 module.exports = { parsePayload };

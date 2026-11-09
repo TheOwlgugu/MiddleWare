@@ -45,6 +45,10 @@ test('设备号越界被拒绝', () => {
     assert.strictEqual(normalize({ deviceId: 1000, type: 1, rawValue: 100, source: 'WiFi' }).ok, false);
 });
 
-test('类型表覆盖 0-4', () => {
-    assert.deepStrictEqual(Object.keys(TYPES), ['0', '1', '2', '3', '4']);
+test('类型表覆盖 0-4，另有 99 心跳', () => {
+    const keys = Object.keys(TYPES);
+    for (const k of ['0', '1', '2', '3', '4']) {
+        assert.ok(keys.includes(k), `缺少类型 ${k}`);
+    }
+    assert.strictEqual(TYPES[99].key, 'hello');
 });

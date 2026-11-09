@@ -11,7 +11,15 @@ const TYPES = {
     1: { key: 'temp',  name: '温度',  unit: '°C',    min: -40, max: 125,  scale: 100 },
     2: { key: 'co2',   name: 'CO2',   unit: 'ppm',   min: 0,   max: 5000, scale: 1   },
     3: { key: 'humi',  name: '湿度',  unit: '%',     min: 0,   max: 100,  scale: 100 },
-    4: { key: 'pm25',  name: 'PM2.5', unit: 'µg/m³', min: 0,   max: 1000, scale: 1   }
+    4: { key: 'pm25',  name: 'PM2.5', unit: 'µg/m³', min: 0,   max: 1000, scale: 1   },
+
+    /* 98 = 网络测试帧：只做通信测试，不入库、不推 Unity */
+    98: { key: 'test', name: '测试', unit: '', min: 0, max: 99999,
+          scale: 1, store: false, broadcast: false },
+
+    /* 99 = 心跳/注册帧：只用来刷新设备路由，不入库、不推 Unity */
+    99: { key: 'hello', name: '心跳', unit: '', min: -2147483648, max: 2147483647,
+          scale: 1, store: false, broadcast: false }
 };
 
 function round(value, digits) {
@@ -53,6 +61,8 @@ function normalize({ deviceId, type, rawValue, source, raw }) {
             unit: meta.unit,
             source,
             raw: raw === undefined ? null : raw,
+            store: meta.store !== false,
+            broadcast: meta.broadcast !== false,
             timestamp: Date.now()
         }
     };

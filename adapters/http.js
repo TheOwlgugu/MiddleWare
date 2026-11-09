@@ -5,6 +5,8 @@ const db = require('../infra/db');
 const log = require('../infra/logger');
 const broadcast = require('../infra/broadcast');
 const ingest = require('../core/ingest');
+const registry = require('../infra/registry');
+const downlink = require('../core/downlink');
 
 function start() {
     const app = express();
@@ -25,7 +27,9 @@ function start() {
             ports: { tcp: config.TCP_PORT, ws: config.WS_PORT, http: config.HTTP_PORT },
             db: dbOk,
             ws_clients: broadcast.clientCount(),
-            ingest: ingest.snapshot()
+            ingest: ingest.snapshot(),
+            routes: registry.snapshot(),
+            downlink: downlink.snapshot()
         });
     });
 

@@ -1,5 +1,6 @@
 // config.js —— 所有可调参数集中在这里，支持环境变量覆盖（M0）
 // 例：TCP_PORT=4001 HTTP_PORT=3001 node index.js
+require('dotenv').config();   // 从 .env 读取敏感配置（不入库）
 const path = require('path');
 
 function port(name, def) {
@@ -22,7 +23,8 @@ module.exports = {
 
     // 数据库
     db: {
-        host: process.env.DB_HOST || 'localhost',
+        host: process.env.DB_HOST || '127.0.0.1',
+        port: port('DB_PORT', 3306),
         user: process.env.DB_USER || 'root',
         password: process.env.DB_PASSWORD || '12345',
         database: process.env.DB_NAME || 'sensor_data',
@@ -39,5 +41,12 @@ module.exports = {
         get topic() {
             return `application/${this.appId}/device/+/event/up`;
         }
+    },
+
+    // 下行
+    downlink: {
+        // LoRa 队列项有效期（秒）：超过这个时间还没下发就由 ChirpStack 丢弃，
+        // 避免设备离线几小时后上线时执行一条过期命令
+        loraTtlSec: Number(process.env.DOWNLINK_TTL_SEC || 120)
     }
 };

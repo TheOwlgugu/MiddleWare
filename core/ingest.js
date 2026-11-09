@@ -4,6 +4,7 @@ const db = require('../infra/db');
 const { broadcast } = require('../infra/broadcast');
 const log = require('../infra/logger');
 const { normalize } = require('./reading');
+const testmode = require('./testmode');
 
 const stats = {
     received: 0,
@@ -19,7 +20,9 @@ const stats = {
 function reject(reason, extra) {
     stats.rejected++;
     stats.lastError = reason;
-    log.warn('报文被拒绝', { reason, ...extra });
+    const safe = { ...extra };
+    if (typeof safe.raw === 'string') safe.raw = log.truncate(safe.raw, 120);
+    log.warn('报文被拒绝', { reason, ...safe });
     return { ok: false, reason };
 }
 
@@ -37,13 +40,28 @@ async function submit(input) {
 
     const reading = res.reading;
     stats.accepted++;
+
+    /* 测试帧：只做通信测试（缺口检测 + 回 ACK），不入库、不广播 */
+    if (reading.type === 98) {
+        return testmode.handle(reading);
+    }
     log.info(`【${reading.source}收到】${reading.name} ${reading.value}${reading.unit}`, {
-        deviceId: reading.deviceId,
-        raw: reading.raw
+        deviceId: reading.deviceId
     });
 
-    // 先推送：Unity 要实时，数据库慢或挂掉不能拖住接收链路
-    broadcast(reading);
+    // 原始报文放到 debug 级，避免每个设备每天几 MB 的日志
+    if (reading.raw) {
+        log.debug('原始报文', { deviceId: reading.deviceId, raw: log.truncate(reading.raw, 120) });
+    }
+
+    // 心跳帧只刷新路由，不推 Unity、不入库
+    if (reading.broadcast) {
+        broadcast(reading);
+    }
+
+    if (!reading.store) {
+        return { ok: true, reading };
+    }
 
     const saved = await db.saveReading(reading.deviceId, reading.type, reading.value);
     if (!saved) stats.dbFailed++;

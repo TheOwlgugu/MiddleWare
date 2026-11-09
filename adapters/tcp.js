@@ -1,8 +1,10 @@
 // adapters/tcp.js —— WiFi/TCP 传输层
-// 只做一件事：按 '\n' 分帧，把每行交给 ascii10 协议解析器，再送 ingest。
+// 上行：按 '\n' 分帧 → ascii10 协议解析 → ingest
+// 下行：把 deviceId → socket 登记到路由表，供 core/downlink 写回
 const net = require('net');
 const config = require('../config');
 const log = require('../infra/logger');
+const registry = require('../infra/registry');
 const ascii10 = require('../protocols/ascii10');
 const ingest = require('../core/ingest');
 
@@ -24,7 +26,7 @@ function start() {
                     const message = line.trim();
                     if (!message) continue;
 
-                    log.info('【TCP原始】', { message });
+                    log.debug('【TCP原始】', { message });
 
                     const parsed = ascii10.parseLine(message);
                     if (!parsed.ok) {
@@ -32,12 +34,18 @@ function start() {
                         continue;
                     }
 
+                    // 登记路由：下行时才知道这个设备走哪个 socket
+                    registry.bindWifi(parsed.deviceId, socket);
+
                     chain = chain.then(() => ingest.submit({ ...parsed, source: 'WiFi', raw: message }));
                 }
             });
 
             socket.on('end',   () => log.info('【WiFi】对方主动断开', { peer }));
-            socket.on('close', () => log.info('【WiFi】连接关闭', { peer }));
+            socket.on('close', () => {
+                registry.unbindSocket(socket);
+                log.info('【WiFi】连接关闭', { peer });
+            });
             socket.on('error', err => log.error('【WiFi】TCP 错误', { peer, message: err.message }));
         });
 
