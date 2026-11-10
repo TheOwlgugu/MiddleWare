@@ -65,7 +65,11 @@ async function main() {
     }
 
     // MQTT 是可选链路：连不上只记日志，不影响 WiFi/TCP
-    mqttAdapter.start();
+    if (config.mqtt.enabled) {
+        mqttAdapter.start();
+    } else {
+        log.info('MQTT 已禁用（MQTT_ENABLED=0），跳过 ChirpStack 订阅');
+    }
 
     status.start();
 

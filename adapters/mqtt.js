@@ -9,6 +9,7 @@ const chirpstack = require('../protocols/chirpstack');
 const ingest = require('../core/ingest');
 
 let client = null;
+let connected = false;
 
 function start() {
     client = mqtt.connect(config.mqtt.broker, {
@@ -17,6 +18,7 @@ function start() {
     });
 
     client.on('connect', () => {
+        connected = true;
         log.info('【MQTT】已连接 ChirpStack');
         client.subscribe(config.mqtt.topic, err => {
             if (err) log.error('【MQTT】订阅失败', { message: err.message });
@@ -40,6 +42,8 @@ function start() {
     });
 
     client.on('error', err => log.error('【MQTT】错误', { message: err.message }));
+    client.on('close', () => { connected = false; });
+    client.on('offline', () => { connected = false; });
 
     return client;
 }
@@ -73,4 +77,6 @@ function sendDownlink(devEui, frame) {
     });
 }
 
-module.exports = { start, sendDownlink };
+function isConnected() { return connected; }
+
+module.exports = { start, sendDownlink, isConnected };

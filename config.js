@@ -3,6 +3,12 @@
 require('dotenv').config();   // 从 .env 读取敏感配置（不入库）
 const path = require('path');
 
+function flag(name, def) {
+    const raw = (process.env[name] || '').trim().toLowerCase();
+    if (raw === '') return def;
+    return !['0', 'false', 'off', 'no', 'disabled'].includes(raw);
+}
+
 function port(name, def) {
     const raw = process.env[name];
     if (raw === undefined || raw === '') return def;
@@ -50,6 +56,8 @@ module.exports = {
 
     // ChirpStack MQTT
     mqtt: {
+        // 0/false/off 时完全不启动 MQTT，适合暂时不开 ChirpStack
+        enabled: flag('MQTT_ENABLED', true),
         broker: process.env.MQTT_BROKER || 'mqtt://localhost:1883',
         appId: process.env.MQTT_APP_ID || '3c643783-29fa-4e4f-970d-202c5428d4b6',
         get topic() {

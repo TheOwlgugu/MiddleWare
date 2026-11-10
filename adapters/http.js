@@ -8,6 +8,7 @@ const ingest = require('../core/ingest');
 const registry = require('../infra/registry');
 const downlink = require('../core/downlink');
 const guard = require('../infra/guard');
+const mqttAdapter = require('./mqtt');
 
 function start() {
     const app = express();
@@ -27,6 +28,7 @@ function start() {
             uptime_s: Math.round((Date.now() - startedAt) / 1000),
             ports: { tcp: config.TCP_PORT, ws: config.WS_PORT, http: config.HTTP_PORT },
             db: dbOk,
+            mqtt: { enabled: config.mqtt.enabled, connected: mqttAdapter.isConnected() },
             ws_clients: broadcast.clientCount(),
             ingest: ingest.snapshot(),
             routes: registry.snapshot(),
