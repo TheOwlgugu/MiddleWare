@@ -3,11 +3,27 @@
 const broadcast = require('../infra/broadcast');
 const config = require('../config');
 const downlink = require('../core/downlink');
+const queries = require('../core/queries');
+
+function route(ws, text) {
+    let msg;
+    try {
+        msg = JSON.parse(text);
+    } catch (_) {
+        return downlink.handleMessage(ws, text);
+    }
+
+    if (msg && msg.kind === 'query') {
+        return queries.handle(ws, msg);
+    }
+
+    return downlink.handleMessage(ws, text);
+}
 
 function start() {
     return broadcast.init(
         config.WS_PORT,
-        (ws, text) => downlink.handleMessage(ws, text),
+        route,
         config.WS_TOKEN,
         config.WS_HOST
     );
