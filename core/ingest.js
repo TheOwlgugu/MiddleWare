@@ -5,6 +5,7 @@ const { broadcast } = require('../infra/broadcast');
 const log = require('../infra/logger');
 const { normalize } = require('./reading');
 const testmode = require('./testmode');
+const status = require('./status');
 
 const stats = {
     received: 0,
@@ -41,9 +42,18 @@ async function submit(input) {
     const reading = res.reading;
     stats.accepted++;
 
+    /* 所有上行都刷新在线时间（LoRa 的超时离线靠它） */
+    status.noteUplink(reading.deviceId);
+
     /* 测试帧：只做通信测试（缺口检测 + 回 ACK），不入库、不广播 */
     if (reading.type === 98) {
         return testmode.handle(reading);
+    }
+
+    /* 心跳：value = mode，只在上线/模式变化时写状态表 */
+    if (reading.type === 99) {
+        await status.onHeartbeat(reading.deviceId, reading.value);
+        return { ok: true, reading };
     }
     log.info(`【${reading.source}收到】${reading.name} ${reading.value}${reading.unit}`, {
         deviceId: reading.deviceId

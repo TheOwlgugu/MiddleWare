@@ -9,6 +9,7 @@ const ascii10 = require('../protocols/ascii10');
 const ingest = require('../core/ingest');
 const auth = require('../core/auth');
 const guard = require('../infra/guard');
+const status = require('../core/status');
 
 function start() {
     return new Promise((resolve, reject) => {
@@ -89,6 +90,7 @@ function start() {
             socket.on('end',   () => log.info('【WiFi】对方主动断开', { peer }));
             socket.on('close', () => {
                 clearTimeout(authTimer);
+                if (authed && authedDeviceId) status.onDisconnect(authedDeviceId);
                 registry.unbindSocket(socket);
                 log.info('【WiFi】连接关闭', { peer, authed });
             });

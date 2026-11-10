@@ -50,6 +50,43 @@ function start() {
         });
     });
 
+    // 设备最新在线状态（work 末位 9 = 离线）
+    app.get('/api/status', async (req, res) => {
+        try {
+            const rows = await db.query(
+                `SELECT l.device_id, l.work,
+                        DATE_FORMAT(l.recorded_at, '%Y-%m-%d %H:%i:%s') AS time
+                 FROM device_status_log l
+                 JOIN (SELECT device_id, MAX(id) AS max_id
+                       FROM device_status_log GROUP BY device_id) m
+                   ON l.id = m.max_id
+                 ORDER BY l.device_id`
+            );
+            res.json(rows);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    // 某设备状态历史
+    app.get('/api/status/:deviceId', async (req, res) => {
+        const deviceId = parseInt(req.params.deviceId);
+        const hours = Math.min(parseInt(req.query.hours) || 24, 24 * 30);
+
+        try {
+            const rows = await db.query(
+                `SELECT work, DATE_FORMAT(recorded_at, '%Y-%m-%d %H:%i:%s') AS time
+                 FROM device_status_log
+                 WHERE device_id = ? AND recorded_at > DATE_SUB(NOW(), INTERVAL ? HOUR)
+                 ORDER BY id ASC`,
+                [deviceId, hours]
+            );
+            res.json(rows);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
     // 设备列表
     app.get('/api/devices', async (req, res) => {
         try {

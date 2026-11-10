@@ -3,6 +3,7 @@ const net = require('net');
 const config = require('./config');
 const log = require('./infra/logger');
 const db = require('./infra/db');
+const status = require('./core/status');
 
 const wsAdapter   = require('./adapters/ws');
 const tcpAdapter  = require('./adapters/tcp');
@@ -66,8 +67,12 @@ async function main() {
     // MQTT 是可选链路：连不上只记日志，不影响 WiFi/TCP
     mqttAdapter.start();
 
+    status.start();
+
     setTimeout(db.cleanOldData, 5000);
+    setTimeout(status.cleanOld, 5000);
     setInterval(db.cleanOldData, 7 * 24 * 60 * 60 * 1000);
+    setInterval(status.cleanOld, 7 * 24 * 60 * 60 * 1000);
 
     if (failed > 0) {
         log.error(`有 ${failed} 个服务启动失败，进程退出（退出码 1）`);
