@@ -30,10 +30,13 @@ function start() {
             let chain = Promise.resolve();     // 同一连接内按顺序处理
             let authed = false;
             let authedDeviceId = null;
+            let ended = false;   // 已结束，忽略后续数据，避免 write after end
 
             const authTimer = setTimeout(() => {
                 if (!authed) {
                     log.warn('【认证】超时，断开', { peer });
+                    guard.fail('tcp', socket.remoteAddress);   // 连上不说话也算一次失败
+                    ended = true;
                     socket.destroy();
                 }
             }, config.AUTH_TIMEOUT_MS || 5000);
@@ -48,10 +51,13 @@ function start() {
                     if (!message) continue;
 
                     chain = chain.then(async () => {
+                        if (ended || socket.destroyed) return;
+
                         if (!authed) {
                             const r = await auth.handleLine(message);
                             if (!r.ok) {
                                 guard.fail('tcp', socket.remoteAddress);
+                                ended = true;
                                 socket.end('AUTH,ERR\n');
                                 return;
                             }
@@ -59,7 +65,7 @@ function start() {
                             authed = true;
                             authedDeviceId = r.deviceId;
                             clearTimeout(authTimer);
-                            socket.write('AUTH,OK\n');
+                            if (socket.writable) socket.write('AUTH,OK\n');
                             log.info('【认证】连接已授权', { peer, deviceId: authedDeviceId });
                             return;
                         }
@@ -82,7 +88,10 @@ function start() {
                         await ingest.submit({ ...parsed, source: 'WiFi', raw: message });
                     }).catch(err => {
                         log.error('【WiFi】处理失败', { peer, message: err.message });
-                        if (!authed) socket.end('AUTH,ERR\n');
+                        if (!authed && !ended && socket.writable) {
+                            ended = true;
+                            socket.end('AUTH,ERR\n');
+                        }
                     });
                 }
             });
